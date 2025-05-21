@@ -137,24 +137,44 @@ export default function QuickLaunch({ servicesAndBookmarks, searchString, setSea
     }
   }
 
+  function filterServicesAndBookmarks() {
+    let results = [];
+    for (const r of servicesAndBookmarks) {
+      if (!r.href) {
+        continue;
+      };
+      if (r.href.includes("%s")) {
+        if (r.abbr && searchString.startsWith(r.abbr.toLowerCase() + " ")) {
+          let h = JSON.parse(JSON.stringify(r));
+          h.priority = 3;
+          h.href = h.href.replace("%s", encodeURIComponent(searchString.substring(r.abbr.length + 1)));
+          h.name = r.name + ": " + searchString.substring(r.abbr.length + 1);
+          results.push(h);
+        }
+      } else if (r.abbr && !r.href.includes("%s") && r.abbr.toLowerCase() == searchString) {
+        let h = JSON.parse(JSON.stringify(r));
+        h.priority = 3;
+        results.push(h);
+      } else if (r.name.toLowerCase().includes(searchString)) {
+        let h = JSON.parse(JSON.stringify(r));
+        h.priority = 2;
+        results.push(h);
+      } else if (r.description && r.description.toLowerCase().includes(searchString)) {
+        let h = JSON.parse(JSON.stringify(r));
+        h.priority = 1;
+        results.push(h);
+      }
+    }
+    results = results.sort((a, b) => b.priority - a.priority);
+    return results;
+  }
+
   useEffect(() => {
     const abortController = new AbortController();
 
     if (searchString.trim().length === 0) setResults([]);
     else {
-      let newResults = servicesAndBookmarks.filter((r) => {
-        const nameMatch = r.name.toLowerCase().includes(searchString);
-        let descriptionMatch;
-        if (searchDescriptions) {
-          descriptionMatch = r.description?.toLowerCase().includes(searchString);
-          r.priority = nameMatch ? 2 * +nameMatch : +descriptionMatch; // eslint-disable-line no-param-reassign
-        }
-        return nameMatch || descriptionMatch;
-      });
-
-      if (searchDescriptions) {
-        newResults = newResults.sort((a, b) => b.priority - a.priority);
-      }
+      let newResults = filterServicesAndBookmarks();
 
       if (searchProvider) {
         newResults.push({
